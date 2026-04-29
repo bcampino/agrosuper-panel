@@ -15,43 +15,272 @@ const statusBadge = (rate: number) => {
   return <Badge className="bg-red-100 text-red-800">Bajo</Badge>
 }
 
-export default async function CampaignPage({ params }: { params: { id: string } }) {
+const countSi = (data: any[], column: string) => {
+  return (data || []).filter((row: any) => row[column]?.toLowerCase?.() === 'si').length
+}
+
+export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = createAdminClient()
 
   // Get campaign
   const { data: campaign, error: campErr } = await supabase
     .from('agrosuper_campaigns')
     .select('id, name, month, column_type')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (campErr || !campaign) notFound()
 
-  // Get all audits for this campaign's month
+  // Check if this is Fiambres campaign (has fiambres in name or use specific ID)
+  const isFiambres = campaign.name.toLowerCase().includes('fiambres')
+
+  if (isFiambres) {
+    // Load data from fiambres table
+    const { data: fiambresData } = await supabase
+      .from('agrosuper_fiambres_audits')
+      .select('*')
+      .order('date_submitted', { ascending: false })
+
+    const audits = fiambresData || []
+    const total = audits.length
+
+    // Calculate metrics - all use 1430 as denominator (those who permit POP)
+    const popPermit = countSi(audits, 'implementa_pop')
+    const opened = countSi(audits, 'opened')
+    const kitBienvenida = countSi(audits, 'kit_bienvenida')
+    const programaFidelizacion = countSi(audits, 'programa_fidelizacion')
+    const popBasico = countSi(audits, 'pop_basico')
+
+    // Materials
+    const colgantes = countSi(audits, 'colgantes_3_lc')
+    const reloj = countSi(audits, 'reloj_lc')
+    const bandejas = countSi(audits, 'bandejas_2_jamon_lc')
+    const logos = countSi(audits, 'logo_2_vitrina_lc')
+    const carteles = countSi(audits, 'carteles_4_jamon_lc')
+    const afiches = countSi(audits, 'afiches_2_sc')
+    const marcos = countSi(audits, 'marcos_2_precio_sc')
+    const huinchas = countSi(audits, 'huinchas_2_precio_sc')
+
+    // Denominator: locales that permit POP
+    const denominator = popPermit || 1430
+    const pct = (count: number) => denominator > 0 ? Math.round((count / denominator) * 100) : 0
+
+    const kitPct = pct(kitBienvenida)
+    const fidelizacionPct = pct(programaFidelizacion)
+    const popBasicoPct = pct(popBasico)
+    const colgantesPct = pct(colgantes)
+    const relojPct = pct(reloj)
+    const bandejasPct = pct(bandejas)
+    const logosPct = pct(logos)
+    const cartelesPct = pct(carteles)
+    const afichesPct = pct(afiches)
+    const marcosPct = pct(marcos)
+    const huinchasPct = pct(huinchas)
+
+    return (
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/agrosuper/campaigns" className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">{campaign.name}</h1>
+            <p className="text-sm text-gray-500 mt-1">Campaña — {campaign.month}</p>
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="Kit de Bienvenida"
+            value={kitPct}
+            unit="%"
+            description={`${kitBienvenida} de ${denominator} locales`}
+            trend={kitPct >= 80 ? 'up' : kitPct >= 50 ? 'neutral' : 'down'}
+          />
+          <MetricCard
+            label="Programa Fidelización"
+            value={fidelizacionPct}
+            unit="%"
+            description={`${programaFidelizacion} de ${denominator} locales`}
+            trend={fidelizacionPct >= 80 ? 'up' : fidelizacionPct >= 50 ? 'neutral' : 'down'}
+          />
+          <MetricCard
+            label="POP Básico"
+            value={popBasicoPct}
+            unit="%"
+            description={`${popBasico} de ${denominator} locales`}
+            trend={popBasicoPct >= 80 ? 'up' : popBasicoPct >= 50 ? 'neutral' : 'down'}
+          />
+          <MetricCard
+            label="Locales Permitidos POP"
+            value={denominator}
+            unit=""
+            description={`De ${total} locales visitados`}
+            trend="up"
+          />
+        </div>
+
+        {/* Materials La Crianza */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">🏆 La Crianza</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">3 Colgantes</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{colgantesPct}%</p>
+                {statusBadge(colgantesPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">Reloj</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{relojPct}%</p>
+                {statusBadge(relojPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">2 Bandejas Jamones</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{bandejasPct}%</p>
+                {statusBadge(bandejasPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">2 Logo Vitrina</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{logosPct}%</p>
+                {statusBadge(logosPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">4 Carteles Jamón</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{cartelesPct}%</p>
+                {statusBadge(cartelesPct)}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Materials Super Cerdo */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">🥩 Super Cerdo</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">2 Afiches</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{afichesPct}%</p>
+                {statusBadge(afichesPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">2 Marcos Precio</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{marcosPct}%</p>
+                {statusBadge(marcosPct)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex-1">
+                <p className="font-medium text-sm">2 Huinchas Precio</p>
+              </div>
+              <div className="text-right ml-3">
+                <p className="font-semibold text-lg">{huinchasPct}%</p>
+                {statusBadge(huinchasPct)}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Detalle de todas las auditorías */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">📋 Todas las Visitas ({total})</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Local</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Implementador</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Abierto</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">POP Básico</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {audits.map((audit: any) => (
+                  <tr key={audit.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-gray-900 text-xs">{audit.location_name}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{audit.implementer_name}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{new Date(audit.date_submitted).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-600">{audit.opened === 'Abierto' ? '✓' : '✗'}</td>
+                    <td className="px-4 py-3 text-gray-600">{audit.pop_basico === 'Si' ? '✓' : '✗'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Original logic for non-Fiambres campaigns
+  const [campYear, campMonth] = campaign.month.split('-')
+  const campYearNum = Number(campYear)
+  const campMonthNum = Number(campMonth)
+  const startDateAudit = `${campaign.month}-01T00:00:00`
+  const nextMonthNumAudit = campMonthNum === 12 ? 1 : campMonthNum + 1
+  const nextYearNumAudit = campMonthNum === 12 ? campYearNum + 1 : campYearNum
+  const nextMonthAudit = String(nextMonthNumAudit).padStart(2, '0')
+  const endDateAudit = `${nextYearNumAudit}-${nextMonthAudit}-01T00:00:00`
+
   const { data: auditsRaw } = await supabase
     .from('agrosuper_audits')
-    .select('*, locations(name, region)')
-    .gte('submitted_at', `${campaign.month}-01T00:00:00`)
-    .lt('submitted_at', `${campaign.month}-32T00:00:00`)
+    .select('id, location_id, implementer_name, submitted_at, form_number, implementation_rate, metrics_by_brand')
+    .gte('submitted_at', startDateAudit)
+    .lt('submitted_at', endDateAudit)
     .order('submitted_at', { ascending: false })
+
+  const locationIds = [...new Set((auditsRaw || []).map(a => a.location_id))]
+  const { data: locations } = locationIds.length > 0
+    ? await supabase
+        .from('locations')
+        .select('id, name, region')
+        .in('id', locationIds)
+    : { data: [] }
+
+  const locationMap = new Map((locations || []).map(l => [l.id, l]))
 
   const audits = (auditsRaw || []).map((a: any) => ({
     ...a,
-    location_name: a.locations?.name ?? 'Sin nombre',
-    commune: a.locations?.region ?? '',
+    location_name: locationMap.get(a.location_id)?.name ?? 'Sin nombre',
+    commune: locationMap.get(a.location_id)?.region ?? '',
   }))
 
-  // Get materials
   const auditIds = audits.map((a: any) => a.id)
   const { data: materialsRaw } = auditIds.length > 0
     ? await supabase.from('agrosuper_materials').select('*').in('audit_id', auditIds)
     : { data: [] }
   const mats = materialsRaw || []
 
-  // Calculate metrics
   const total = audits.length
-  const uniqueCommunes = new Set(audits.map((a: any) => a.commune).filter(Boolean)).size
-
   const implementedCount = audits.filter((a: any) => (a.implementation_rate ?? 0) > 0).length
   const implementedPct = total > 0 ? Math.round((implementedCount / total) * 100) : 0
 
@@ -71,7 +300,6 @@ export default async function CampaignPage({ params }: { params: { id: string } 
   const partial = audits.filter((a: any) => a.implementation_rate >= 50 && a.implementation_rate < 80).length
   const low = audits.filter((a: any) => a.implementation_rate < 50).length
 
-  // Top 5 comunas
   const communeMap: Record<string, { total: number; count: number }> = {}
   audits.forEach((a: any) => {
     const c = a.commune
