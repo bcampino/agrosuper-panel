@@ -36,13 +36,24 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const isFiambres = campaign.name.toLowerCase().includes('fiambres')
 
   if (isFiambres) {
-    // Load data from fiambres table
-    const { data: fiambresData } = await supabase
-      .from('agrosuper_fiambres_audits')
-      .select('*')
-      .order('date_submitted', { ascending: false })
+    // Load data from fiambres table with pagination (Supabase has 1000 row limit per query)
+    let allFiambresData: any[] = []
+    let offset = 0
+    const pageSize = 1000
 
-    const audits = fiambresData || []
+    while (true) {
+      const { data: pageData } = await supabase
+        .from('agrosuper_fiambres_audits')
+        .select('*')
+        .range(offset, offset + pageSize - 1)
+        .order('date_submitted', { ascending: false })
+
+      if (!pageData || pageData.length === 0) break
+      allFiambresData = allFiambresData.concat(pageData)
+      offset += pageSize
+    }
+
+    const audits = allFiambresData
     const total = audits.length
 
     // Calculate metrics - all use 1430 as denominator (those who permit POP)
