@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  /* Agrosuper brand - Official palette from agrosuper.cl */
+  --color-agrosuper-primary-blue: #007BFF;
+  --color-agrosuper-dark-blue: #1E2C3E;
+  --color-agrosuper-gray-dark: #212529;
+  --color-agrosuper-orange-vibrant: #FF740C;
+  --color-agrosuper-orange-warm: #DC8836;
+
+  /* Semantic tokens - Mapped to Agrosuper brand */
+  --color-background: #FFFFFF;
+  --color-foreground: #212529;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #212529;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #212529;
+  --color-primary: #007BFF;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #1E2C3E;
+  --color-secondary-foreground: #FFFFFF;
+  --color-muted: #F0F0F0;
+  --color-muted-foreground: #6C757D;
+  --color-accent: #FF740C;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #DC3545;
+  --color-border: #E0E0E0;
+  --color-input: #FFFFFF;
+  --color-ring: #007BFF;
+
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-secondary);
+    font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: 2.625rem; /* 42px */
+  }
+
+  h2 {
+    font-size: 1.5625rem; /* 25px */
+  }
+
+  h3 {
+    font-size: 1.25rem; /* 20px */
+  }
+
+  a {
+    color: var(--color-primary);
+  }
+
+  a:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+}
