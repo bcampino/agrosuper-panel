@@ -1,5 +1,7 @@
 import { MetricCard } from '@/components/agrosuper/metric-card'
 import { PanaderiaChart, FachadaChart, ImplementationDistributionChart, AllMaterialsChart } from '@/components/agrosuper/implementation-charts'
+import { AuditsTable } from '@/components/agrosuper/audits-table'
+import { AbrilAuditsTable } from '@/components/agrosuper/abril-audits-table'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -53,12 +55,27 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       offset += pageSize
     }
 
-    const audits = allFiambresData
+    const fiambresAudits = allFiambresData.map((a: any) => ({
+      id: `fiambres-${a.location_code}-${a.date_submitted}`,
+      location_code: a.location_code,
+      location_name: a.location_name,
+      submitted_at: a.date_submitted,
+      implementer_name: a.implementer_name,
+      colgantes_3_lc: a.colgantes_3_lc,
+      reloj_lc: a.reloj_lc,
+      bandejas_2_jamon_lc: a.bandejas_2_jamon_lc,
+      logo_2_vitrina_lc: a.logo_2_vitrina_lc,
+      carteles_4_jamon_lc: a.carteles_4_jamon_lc,
+      afiches_2_sc: a.afiches_2_sc,
+      marcos_2_precio_sc: a.marcos_2_precio_sc,
+      huinchas_2_precio_sc: a.huinchas_2_precio_sc,
+    }))
+    const audits = fiambresAudits
     const total = audits.length
 
     // Calculate metrics - all use 1430 as denominator (those who permit POP)
     const popPermit = countSi(audits, 'implementa_pop')
-    const opened = (audits || []).filter((r: any) => r.opened?.toLowerCase?.() === 'abierto').length
+    const opened = (audits || []).filter((r: any) => r.opened?.toLowerCase?.() === 'visitado').length
     const kitBienvenida = countSi(audits, 'kit_bienvenida')
     const programaFidelizacion = countSi(audits, 'programa_fidelizacion')
     const popBasico = countSi(audits, 'pop_basico')
@@ -243,6 +260,189 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
             ))}
           </div>
         </Card>
+
+        {/* Detalle de todas las auditorías */}
+        <AuditsTable audits={audits} isFiambres={true} />
+      </div>
+    )
+  }
+
+  // Check if this is Abril campaign
+  const isAbril = campaign.name.toLowerCase().includes('abril') || campaign.name.toLowerCase().includes('april')
+
+  if (isAbril) {
+    // Load data from abril table
+    let allAbrilData: any[] = []
+    let offset = 0
+    const pageSize = 1000
+
+    while (true) {
+      const { data: pageData } = await supabase
+        .from('agrosuper_abril_audits')
+        .select('*')
+        .range(offset, offset + pageSize - 1)
+        .order('submitted_at', { ascending: false })
+
+      if (!pageData || pageData.length === 0) break
+      allAbrilData = allAbrilData.concat(pageData)
+      offset += pageSize
+    }
+
+    const abrilAudits = allAbrilData.map((a: any) => ({
+      id: `abril-${a.form_code}`,
+      form_code: a.form_code,
+      location_code: a.location_code,
+      location_name: a.location_name,
+      submitted_at: a.submitted_at,
+      implementer_name: a.implementer_name,
+      implementation_rate: a.implementation_rate
+    }))
+
+    const audits = abrilAudits
+    const total = audits.length
+
+    // Calculate metrics by material
+    const countMaterial = (materiales: any[], column: string) => {
+      return allAbrilData.filter((row: any) => row[column] === true).length
+    }
+
+    const bandeja = countMaterial(allAbrilData, 'bandeja_jamon_lc')
+    const logo = countMaterial(allAbrilData, 'logo_vitrina_lc')
+    const colgante = countMaterial(allAbrilData, 'colgante_recomendacion_lc')
+    const marcaPrecio = countMaterial(allAbrilData, 'marca_precio_sc')
+    const huincha = countMaterial(allAbrilData, 'huincha_precio_sc')
+    const cartelPan = countMaterial(allAbrilData, 'cartel_panaderia')
+    const portabolsas = countMaterial(allAbrilData, 'portabolsas')
+    const bolsasPapel = countMaterial(allAbrilData, 'bolsas_papel')
+    const tenazas = countMaterial(allAbrilData, 'tenazas_2')
+    const paloma = countMaterial(allAbrilData, 'paloma')
+    const cenefa = countMaterial(allAbrilData, 'cenefa_lc')
+    const banderaMuro = countMaterial(allAbrilData, 'bandera_muro_lc')
+    const banderaRutera = countMaterial(allAbrilData, 'bandera_rutera_lc')
+
+    const denominator = total || 1
+    const pct = (count: number) => Math.round((count / denominator) * 100)
+
+    const bandejaPct = pct(bandeja)
+    const logoPct = pct(logo)
+    const colgantesPct = pct(colgante)
+    const marcaPrecióPct = pct(marcaPrecio)
+    const huinchaPct = pct(huincha)
+    const cartelPanPct = pct(cartelPan)
+    const portabolsasPct = pct(portabolsas)
+    const bolsasPct = pct(bolsasPapel)
+    const tenazasPct = pct(tenazas)
+    const palomaPct = pct(paloma)
+    const cenefaPct = pct(cenefa)
+    const banderaMuroPct = pct(banderaMuro)
+    const banderaRuteraPct = pct(banderaRutera)
+
+    const opened = allAbrilData.filter((r: any) => r.local_status?.toLowerCase?.() === 'abierto').length
+
+    // Prepare POP data for chart
+    const popData = [
+      { name: 'Bandeja Jamón LC', value: bandejaPct },
+      { name: 'Logo Vitrina LC', value: logoPct },
+      { name: 'Colgante LC', value: colgantesPct },
+      { name: 'Marca Precio SC', value: marcaPrecióPct },
+      { name: 'Huincha Precio SC', value: huinchaPct },
+      { name: 'Cartel Panadería', value: cartelPanPct },
+      { name: 'Portabolsas', value: portabolsasPct },
+      { name: 'Bolsas Papel', value: bolsasPct },
+      { name: 'Tenazas', value: tenazasPct },
+      { name: 'Paloma', value: palomaPct },
+      { name: 'Cenefa LC', value: cenefaPct },
+      { name: 'Bandera Muro LC', value: banderaMuroPct },
+      { name: 'Bandera Rutera LC', value: banderaRuteraPct }
+    ].sort((a, b) => b.value - a.value)
+
+    return (
+      <div className="space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/agrosuper/campaigns" className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">{campaign.name}</h1>
+            <p className="text-sm text-gray-500 mt-1">Campaña — {campaign.month}</p>
+          </div>
+        </div>
+
+        {/* Total stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <p className="text-sm text-gray-600">Total de Visitas</p>
+            <p className="text-3xl font-bold text-blue-900">{total}</p>
+          </Card>
+          <Card className="p-4 bg-green-50 border-green-200">
+            <p className="text-sm text-gray-600">Locales Abiertos</p>
+            <p className="text-3xl font-bold text-green-900">{opened}</p>
+          </Card>
+        </div>
+
+        {/* La Crianza + Super Cerdo side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* La Crianza */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">🏆 La Crianza</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">Bandeja Jamón: {bandejaPct}%</p>
+                {statusBadge(bandejaPct)}
+              </div>
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">Logo Vitrina: {logoPct}%</p>
+                {statusBadge(logoPct)}
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Colgante: {colgantesPct}%</p>
+                {statusBadge(colgantesPct)}
+              </div>
+            </div>
+          </Card>
+
+          {/* Super Cerdo */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">🥩 Super Cerdo</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">Marca Precio: {marcaPrecióPct}%</p>
+                {statusBadge(marcaPrecióPct)}
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Huincha Precio: {huinchaPct}%</p>
+                {statusBadge(huinchaPct)}
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* All POP materials chart */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">📊 Todos los POP - % Implementación</h3>
+          <div className="space-y-2">
+            {popData.map((item) => (
+              <div key={item.name} className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.name}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-32 h-6 bg-gray-100 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all"
+                      style={{ width: `${item.value}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-sm w-12 text-right">{item.value}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Detalle de todas las auditorías */}
+        <AbrilAuditsTable audits={audits} />
       </div>
     )
   }
@@ -401,38 +601,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Detalle de todas las auditorías */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">📋 Todas las Visitas ({total})</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Local</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Comuna</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Implementador</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-700">%</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {audits.map((audit: any) => (
-                <tr key={audit.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-900">{audit.location_name}</td>
-                  <td className="px-4 py-3 text-gray-600">{audit.commune || '-'}</td>
-                  <td className="px-4 py-3 text-gray-600">{audit.implementer_name}</td>
-                  <td className="px-4 py-3 text-gray-600">{new Date(audit.submitted_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="font-semibold">{audit.implementation_rate}%</span>
-                      {statusBadge(audit.implementation_rate)}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <AuditsTable audits={audits} isFiambres={false} />
     </div>
   )
 }
