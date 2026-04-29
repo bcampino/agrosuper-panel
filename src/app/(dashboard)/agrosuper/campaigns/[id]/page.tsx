@@ -58,7 +58,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
     // Calculate metrics - all use 1430 as denominator (those who permit POP)
     const popPermit = countSi(audits, 'implementa_pop')
-    const opened = countSi(audits, 'opened')
+    const opened = (audits || []).filter((r: any) => r.opened?.toLowerCase?.() === 'abierto').length
     const kitBienvenida = countSi(audits, 'kit_bienvenida')
     const programaFidelizacion = countSi(audits, 'programa_fidelizacion')
     const popBasico = countSi(audits, 'pop_basico')
@@ -89,6 +89,45 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     const marcosPct = pct(marcos)
     const huinchasPct = pct(huinchas)
 
+    // Calculate by zona
+    const zonaMap: Record<string, { count: number; implCount: number }> = {}
+    audits.forEach((audit: any) => {
+      const zone = audit.zona || 'Sin zona'
+      if (!zonaMap[zone]) zonaMap[zone] = { count: 0, implCount: 0 }
+      zonaMap[zone].count += 1
+      const implCount = [
+        audit.colgantes_3_lc,
+        audit.reloj_lc,
+        audit.bandejas_2_jamon_lc,
+        audit.logo_2_vitrina_lc,
+        audit.carteles_4_jamon_lc,
+        audit.afiches_2_sc,
+        audit.marcos_2_precio_sc,
+        audit.huinchas_2_precio_sc
+      ].filter(m => m?.toLowerCase?.() === 'si').length
+      if (implCount > 0) zonaMap[zone].implCount += 1
+    })
+
+    const zonaStats = Object.entries(zonaMap)
+      .map(([name, { count, implCount }]) => ({
+        name,
+        total: count,
+        impl: Math.round((implCount / count) * 100)
+      }))
+      .sort((a, b) => b.impl - a.impl)
+
+    // Prepare POP data for chart
+    const popData = [
+      { name: '3 Colgantes', value: colgantesPct },
+      { name: 'Reloj', value: relojPct },
+      { name: '2 Bandejas', value: bandejasPct },
+      { name: '2 Logo', value: logosPct },
+      { name: '4 Carteles', value: cartelesPct },
+      { name: '2 Afiches', value: afichesPct },
+      { name: '2 Marcos', value: marcosPct },
+      { name: '2 Huinchas', value: huinchasPct }
+    ].sort((a, b) => b.value - a.value)
+
     return (
       <div className="space-y-6 p-6">
         {/* Header */}
@@ -102,169 +141,106 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard
-            label="Kit de Bienvenida"
-            value={kitPct}
-            unit="%"
-            description={`${kitBienvenida} de ${denominator} locales`}
-            trend={kitPct >= 80 ? 'up' : kitPct >= 50 ? 'neutral' : 'down'}
-          />
-          <MetricCard
-            label="Programa Fidelización"
-            value={fidelizacionPct}
-            unit="%"
-            description={`${programaFidelizacion} de ${denominator} locales`}
-            trend={fidelizacionPct >= 80 ? 'up' : fidelizacionPct >= 50 ? 'neutral' : 'down'}
-          />
-          <MetricCard
-            label="POP Básico"
-            value={popBasicoPct}
-            unit="%"
-            description={`${popBasico} de ${denominator} locales`}
-            trend={popBasicoPct >= 80 ? 'up' : popBasicoPct >= 50 ? 'neutral' : 'down'}
-          />
-          <MetricCard
-            label="Locales Permitidos POP"
-            value={denominator}
-            unit=""
-            description={`De ${total} locales visitados`}
-            trend="up"
-          />
+        {/* Total stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 bg-blue-50 border-blue-200">
+            <p className="text-sm text-gray-600">Total de Visitas</p>
+            <p className="text-3xl font-bold text-blue-900">{total}</p>
+          </Card>
+          <Card className="p-4 bg-green-50 border-green-200">
+            <p className="text-sm text-gray-600">Locales Abiertos</p>
+            <p className="text-3xl font-bold text-green-900">{opened}</p>
+          </Card>
         </div>
 
-        {/* Materials La Crianza */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">🏆 La Crianza</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">3 Colgantes</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{colgantesPct}%</p>
+        {/* La Crianza + Super Cerdo side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* La Crianza */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">🏆 La Crianza</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">3 Colgantes: {colgantesPct}%</p>
                 {statusBadge(colgantesPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">Reloj</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{relojPct}%</p>
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">Reloj: {relojPct}%</p>
                 {statusBadge(relojPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">2 Bandejas Jamones</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{bandejasPct}%</p>
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">2 Bandejas: {bandejasPct}%</p>
                 {statusBadge(bandejasPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">2 Logo Vitrina</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{logosPct}%</p>
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">2 Logo: {logosPct}%</p>
                 {statusBadge(logosPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">4 Carteles Jamón</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{cartelesPct}%</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">4 Carteles: {cartelesPct}%</p>
                 {statusBadge(cartelesPct)}
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Materials Super Cerdo */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">🥩 Super Cerdo</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">2 Afiches</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{afichesPct}%</p>
+          {/* Super Cerdo */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">🥩 Super Cerdo</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">2 Afiches: {afichesPct}%</p>
                 {statusBadge(afichesPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">2 Marcos Precio</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{marcosPct}%</p>
+              <div className="flex items-center justify-between pb-2">
+                <p className="text-sm font-medium">2 Marcos: {marcosPct}%</p>
                 {statusBadge(marcosPct)}
               </div>
-            </div>
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex-1">
-                <p className="font-medium text-sm">2 Huinchas Precio</p>
-              </div>
-              <div className="text-right ml-3">
-                <p className="font-semibold text-lg">{huinchasPct}%</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">2 Huinchas: {huinchasPct}%</p>
                 {statusBadge(huinchasPct)}
               </div>
             </div>
+          </Card>
+        </div>
+
+        {/* All POP materials chart */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">📊 Todos los POP - % Implementación</h3>
+          <div className="space-y-2">
+            {popData.map((item) => (
+              <div key={item.name} className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.name}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-32 h-6 bg-gray-100 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 transition-all"
+                      style={{ width: `${item.value}%` }}
+                    />
+                  </div>
+                  <span className="font-semibold text-sm w-12 text-right">{item.value}%</span>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
-        {/* Detalle de todas las auditorías */}
+        {/* % Implementación por Zona */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">📋 Todas las Visitas ({total})</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Local</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Implementador</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">% Implementación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {audits
-                  .map((audit: any) => {
-                    const materialsCount = [
-                      audit.colgantes_3_lc,
-                      audit.reloj_lc,
-                      audit.bandejas_2_jamon_lc,
-                      audit.logo_2_vitrina_lc,
-                      audit.carteles_4_jamon_lc,
-                      audit.afiches_2_sc,
-                      audit.marcos_2_precio_sc,
-                      audit.huinchas_2_precio_sc
-                    ].filter(m => m?.toLowerCase?.() === 'si').length
-                    const implementationRate = Math.round((materialsCount / 8) * 100)
-                    return { ...audit, implementationRate }
-                  })
-                  .sort((a: any, b: any) => b.implementationRate - a.implementationRate)
-                  .map((audit: any) => (
-                    <tr key={audit.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-900 text-xs">{audit.location_name}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{audit.implementer_name}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{new Date(audit.date_submitted).toLocaleDateString()}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <span className="font-semibold">{audit.implementationRate}%</span>
-                          {statusBadge(audit.implementationRate)}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+          <h3 className="text-lg font-semibold mb-4">🗺️ % Implementación por Zona</h3>
+          <div className="space-y-3">
+            {zonaStats.map((zona) => (
+              <div key={zona.name} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                <div className="flex-1">
+                  <p className="font-medium text-sm">{zona.name}</p>
+                  <p className="text-xs text-gray-500">{zona.total} local{zona.total !== 1 ? 'es' : ''}</p>
+                </div>
+                <div className="text-right ml-3">
+                  <p className="font-semibold text-lg">{zona.impl}%</p>
+                  {statusBadge(zona.impl)}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
