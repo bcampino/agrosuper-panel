@@ -32,9 +32,9 @@ export function PanaderiaChart({ materials }: MaterialChartProps) {
           <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 12 }} />
           <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
           <Tooltip formatter={(value) => [`${value}%`, 'Implementado']} />
-          <Bar dataKey="value" fill="#f59e0b" radius={[0, 6, 6, 0]}>
+          <Bar dataKey="value" fill="#FF740C" radius={[0, 6, 6, 0]}>
             {chartData.map((_, i) => (
-              <Cell key={i} fill={['#f59e0b','#fbbf24','#fcd34d','#fde68a'][i]} />
+              <Cell key={i} fill={['#FF740C','#FF9139','#FFB380','#FFD4B3'][i]} />
             ))}
           </Bar>
         </BarChart>
@@ -61,9 +61,9 @@ export function FachadaChart({ materials }: MaterialChartProps) {
           <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 12 }} />
           <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 12 }} />
           <Tooltip formatter={(value) => [`${value}%`, 'Implementado']} />
-          <Bar dataKey="value" fill="#3b82f6" radius={[0, 6, 6, 0]}>
+          <Bar dataKey="value" fill="#007BFF" radius={[0, 6, 6, 0]}>
             {chartData.map((_, i) => (
-              <Cell key={i} fill={['#3b82f6','#60a5fa','#93c5fd','#bfdbfe'][i]} />
+              <Cell key={i} fill={['#007BFF','#3399FF','#66B3FF','#99CCFF'][i]} />
             ))}
           </Bar>
         </BarChart>
@@ -79,19 +79,19 @@ interface DistributionChartProps {
 }
 
 const ALL_MATERIALS = [
-  { key: 'BANDEJA_JAMON_LC',          label: 'Bandeja Jamón LC',          color: '#16a34a' },
-  { key: 'LOGO_VITRINA_LC',           label: 'Logo Vitrina LC',           color: '#16a34a' },
-  { key: 'COLGANTE_RECOMENDACION_LC', label: 'Colgante Recomendación LC', color: '#16a34a' },
-  { key: 'MARCA_PRECIO_SC',           label: 'Marca Precio SC',           color: '#2563eb' },
-  { key: 'HUINCHA_PRECIO_SC',         label: 'Huincha Precio SC',         color: '#2563eb' },
-  { key: 'CARTEL_PANADERIA',          label: 'Cartel Panadería',          color: '#d97706' },
-  { key: 'PORTABOLSAS',              label: 'Portabolsas',               color: '#d97706' },
-  { key: 'BOLSAS_PAPEL',             label: 'Bolsas de Papel',           color: '#d97706' },
-  { key: 'TENAZAS_2',               label: 'Tenazas',                   color: '#d97706' },
-  { key: 'PALOMA',                   label: 'Paloma',                    color: '#7c3aed' },
-  { key: 'CENEFA_LC',               label: 'Cenefa LC',                 color: '#7c3aed' },
-  { key: 'BANDERA_MURO_LC',         label: 'Bandera Muro LC',           color: '#7c3aed' },
-  { key: 'BANDERA_RUTERA_LC',       label: 'Bandera Rutera LC',         color: '#7c3aed' },
+  { key: 'BANDEJA_JAMON_LC',          label: 'Bandeja Jamón LC',          color: '#007BFF' },
+  { key: 'LOGO_VITRINA_LC',           label: 'Logo Vitrina LC',           color: '#007BFF' },
+  { key: 'COLGANTE_RECOMENDACION_LC', label: 'Colgante Recomendación LC', color: '#007BFF' },
+  { key: 'MARCA_PRECIO_SC',           label: 'Marca Precio SC',           color: '#FF740C' },
+  { key: 'HUINCHA_PRECIO_SC',         label: 'Huincha Precio SC',         color: '#FF740C' },
+  { key: 'CARTEL_PANADERIA',          label: 'Cartel Panadería',          color: '#FF740C' },
+  { key: 'PORTABOLSAS',              label: 'Portabolsas',               color: '#FF740C' },
+  { key: 'BOLSAS_PAPEL',             label: 'Bolsas de Papel',           color: '#FF740C' },
+  { key: 'TENAZAS_2',               label: 'Tenazas',                   color: '#FF740C' },
+  { key: 'PALOMA',                   label: 'Paloma',                    color: '#007BFF' },
+  { key: 'CENEFA_LC',               label: 'Cenefa LC',                 color: '#007BFF' },
+  { key: 'BANDERA_MURO_LC',         label: 'Bandera Muro LC',           color: '#007BFF' },
+  { key: 'BANDERA_RUTERA_LC',       label: 'Bandera Rutera LC',         color: '#007BFF' },
 ]
 
 export function AllMaterialsChart({ materials }: MaterialChartProps) {
@@ -107,10 +107,10 @@ export function AllMaterialsChart({ materials }: MaterialChartProps) {
       <p className="text-sm text-gray-500 mb-2">% de locales con cada material implementado</p>
       <div className="flex gap-4 mb-4 flex-wrap">
         {[
-          { label: 'La Crianza',    color: '#16a34a' },
-          { label: 'Super Cerdo',   color: '#2563eb' },
-          { label: 'Panadería',     color: '#d97706' },
-          { label: 'Fachada',       color: '#7c3aed' },
+          { label: 'La Crianza',    color: '#007BFF' },
+          { label: 'Super Cerdo',   color: '#FF740C' },
+          { label: 'Panadería',     color: '#FF740C' },
+          { label: 'Fachada',       color: '#007BFF' },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: l.color }} />
@@ -137,9 +137,9 @@ export function AllMaterialsChart({ materials }: MaterialChartProps) {
 
 export function ImplementationDistributionChart({ success, partial, low }: DistributionChartProps) {
   const chartData = [
-    { name: 'Excelente (≥80%)', value: success, color: '#10b981' },
-    { name: 'Parcial (50-80%)', value: partial, color: '#f59e0b' },
-    { name: 'Bajo (<50%)', value: low, color: '#ef4444' },
+    { name: 'Excelente (≥80%)', value: success, color: '#007BFF' },
+    { name: 'Parcial (50-80%)', value: partial, color: '#FF740C' },
+    { name: 'Bajo (<50%)', value: low, color: '#EF4444' },
   ];
 
   return (
