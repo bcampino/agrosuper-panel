@@ -20,25 +20,35 @@ type Stats = { total: number; communes: number; avgRate: number }
 export default async function CampaignsPage() {
   const supabase = createAdminClient()
 
-  const [{ data: campaigns }, { data: rawAudits }] = await Promise.all([
+  const [{ data: campaigns }, { data: scopes }, { data: audits }] = await Promise.all([
     supabase.from('agrosuper_campaigns').select('*').order('created_at', { ascending: false }),
-    supabase.from('agrosuper_audits').select('submitted_at, implementation_rate, locations(region)'),
+    supabase.from('agrosuper_campaign_scopes').select('campaign_id, locations(region)'),
+    supabase.from('agrosuper_audits').select('submitted_at, implementation_rate'),
   ])
 
-  // Compute stats per month
-  const monthMap = new Map<string, Array<{ implementation_rate: number | null; region: string | null }>>()
-  for (const a of (rawAudits || []) as any[]) {
-    const m = (a.submitted_at as string).slice(0, 7)
-    if (!monthMap.has(m)) monthMap.set(m, [])
-    monthMap.get(m)!.push({ implementation_rate: a.implementation_rate, region: a.locations?.region ?? null })
+  // Count locales from scope per campaign
+  const campaignLocales = new Map<string, Set<string>>()
+  for (const scope of (scopes || []) as any[]) {
+    if (!campaignLocales.has(scope.campaign_id)) {
+      campaignLocales.set(scope.campaign_id, new Set())
+    }
+    campaignLocales.get(scope.campaign_id)!.add(scope.locations?.region ?? '')
   }
 
-  function statsFor(month: string): Stats {
-    const slice = monthMap.get(month) || []
-    const total    = slice.length
-    const communes = new Set(slice.map(a => a.region).filter(Boolean)).size
-    const avgRate  = total > 0 ? Math.round(slice.reduce((s, a) => s + (a.implementation_rate ?? 0), 0) / total) : 0
-    return { total, communes, avgRate }
+  // Compute average rate per month from audits
+  const monthRates = new Map<string, number[]>()
+  for (const a of (audits || []) as any[]) {
+    const m = (a.submitted_at as string).slice(0, 7)
+    if (!monthRates.has(m)) monthRates.set(m, [])
+    monthRates.get(m)!.push(a.implementation_rate ?? 0)
+  }
+
+  function statsFor(campaignId: string, month: string): Stats {
+    const regions = campaignLocales.get(campaignId)
+    const total = regions ? (regions.size > 0 ? [...regions].filter(r => r).length : regions.size) : 0
+    const rates = monthRates.get(month) || []
+    const avgRate = rates.length > 0 ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0
+    return { total: campaignLocales.get(campaignId)?.size ?? 0, communes: regions?.size ?? 0, avgRate }
   }
 
   // Group campaigns by column_type
@@ -80,7 +90,7 @@ export default async function CampaignsPage() {
                   </Card>
                 ) : (
                   list.map(campaign => {
-                    const stats = statsFor(campaign.month)
+                    const stats = statsFor(campaign.id, campaign.month)
                     return (
                       <CampaignCard
                         key={campaign.id}
@@ -124,7 +134,7 @@ function CampaignCard({ campaign, stats, color }: { campaign: Campaign; stats: S
       <div className="flex gap-2 pt-1 flex-col">
         <div className="flex gap-2">
           <Link
-            href={`/agrosuper?month=${campaign.month}`}
+            href={`/agrosuper/campaigns/${campaign.id}`}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <BarChart2 className="h-3.5 w-3.5" />
