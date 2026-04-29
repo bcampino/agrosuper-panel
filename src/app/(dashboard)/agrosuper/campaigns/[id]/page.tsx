@@ -219,20 +219,39 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Local</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Implementador</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Abierto</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">POP Básico</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700">% Implementación</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {audits.map((audit: any) => (
-                  <tr key={audit.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-900 text-xs">{audit.location_name}</td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{audit.implementer_name}</td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{new Date(audit.date_submitted).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-gray-600">{audit.opened === 'Abierto' ? '✓' : '✗'}</td>
-                    <td className="px-4 py-3 text-gray-600">{audit.pop_basico === 'Si' ? '✓' : '✗'}</td>
-                  </tr>
-                ))}
+                {audits
+                  .map((audit: any) => {
+                    const materialsCount = [
+                      audit.colgantes_3_lc,
+                      audit.reloj_lc,
+                      audit.bandejas_2_jamon_lc,
+                      audit.logo_2_vitrina_lc,
+                      audit.carteles_4_jamon_lc,
+                      audit.afiches_2_sc,
+                      audit.marcos_2_precio_sc,
+                      audit.huinchas_2_precio_sc
+                    ].filter(m => m?.toLowerCase?.() === 'si').length
+                    const implementationRate = Math.round((materialsCount / 8) * 100)
+                    return { ...audit, implementationRate }
+                  })
+                  .sort((a: any, b: any) => b.implementationRate - a.implementationRate)
+                  .map((audit: any) => (
+                    <tr key={audit.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-900 text-xs">{audit.location_name}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{audit.implementer_name}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{new Date(audit.date_submitted).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="font-semibold">{audit.implementationRate}%</span>
+                          {statusBadge(audit.implementationRate)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
