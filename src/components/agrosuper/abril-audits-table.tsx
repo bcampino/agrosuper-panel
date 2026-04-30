@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Search, ChevronUp, ChevronDown, X, FileText } from 'lucide-react'
-import { createAdminClient } from '@/lib/supabase/admin'
 
 const statusBadge = (rate: number) => {
   if (rate >= 80) return <Badge className="bg-green-100 text-green-800">Excelente</Badge>
@@ -35,29 +34,15 @@ function PhotosPanel({ formCode, locationName }: { formCode: number; locationNam
       if (!formCode) return
 
       try {
-        const supabase = createAdminClient()
-        const { data, error } = await supabase
-          .from('agrosuper_abril_photos')
-          .select('*')
-          .eq('form_code', formCode)
-
-        if (error) {
-          console.error('Error loading photos:', error)
+        const response = await fetch(`/api/agrosuper/abril-photos?form_code=${formCode}`)
+        if (!response.ok) {
+          console.error('Error loading photos:', response.statusText)
+          setLoading(false)
           return
         }
 
-        if (data && data.length > 0) {
-          const photoData: Record<string, string[]> = {}
-
-          data.forEach((photo: any) => {
-            if (!photoData[photo.photo_type]) {
-              photoData[photo.photo_type] = []
-            }
-            photoData[photo.photo_type].push(photo.photo_url)
-          })
-
-          setPhotos(photoData)
-        }
+        const photoData = await response.json()
+        setPhotos(photoData)
       } catch (error) {
         console.error('Error loading photos:', error)
       } finally {
