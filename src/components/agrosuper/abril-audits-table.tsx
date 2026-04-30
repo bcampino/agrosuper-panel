@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Search, ChevronUp, ChevronDown, X, FileText } from 'lucide-react'
@@ -30,33 +30,42 @@ function PhotosPanel({ formCode, locationName }: { formCode: number; locationNam
   const [photos, setPhotos] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
 
-  useMemo(async () => {
-    if (!formCode) return
+  useEffect(() => {
+    const loadPhotos = async () => {
+      if (!formCode) return
 
-    try {
-      const supabase = createAdminClient()
-      const { data } = await supabase
-        .from('agrosuper_abril_photos')
-        .select('*')
-        .eq('form_code', formCode)
+      try {
+        const supabase = createAdminClient()
+        const { data, error } = await supabase
+          .from('agrosuper_abril_photos')
+          .select('*')
+          .eq('form_code', formCode)
 
-      if (data && data.length > 0) {
-        const photoData: Record<string, string[]> = {}
+        if (error) {
+          console.error('Error loading photos:', error)
+          return
+        }
 
-        data.forEach((photo: any) => {
-          if (!photoData[photo.photo_type]) {
-            photoData[photo.photo_type] = []
-          }
-          photoData[photo.photo_type].push(photo.photo_url)
-        })
+        if (data && data.length > 0) {
+          const photoData: Record<string, string[]> = {}
 
-        setPhotos(photoData)
+          data.forEach((photo: any) => {
+            if (!photoData[photo.photo_type]) {
+              photoData[photo.photo_type] = []
+            }
+            photoData[photo.photo_type].push(photo.photo_url)
+          })
+
+          setPhotos(photoData)
+        }
+      } catch (error) {
+        console.error('Error loading photos:', error)
+      } finally {
+        setLoading(false)
       }
-    } catch (error) {
-      console.error('Error loading photos:', error)
-    } finally {
-      setLoading(false)
     }
+
+    loadPhotos()
   }, [formCode])
 
   const getPhotoLabel = (key: string) => {
