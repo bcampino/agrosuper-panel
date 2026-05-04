@@ -34,7 +34,7 @@ export function PanaderiaChart({ materials }: MaterialChartProps) {
           <Tooltip formatter={(value) => [`${value}%`, 'Implementado']} />
           <Bar dataKey="value" fill={COLOR_PAN} radius={[0, 6, 6, 0]}>
             {chartData.map((_, i) => (
-              <Cell key={i} fill={['#F59E0B','#FBBF24','#FCD34D','#FDE68A'][i]} />
+              <Cell key={i} fill={['#007BFF','#3395FF','#66B0FF','#99CBFF'][i]} />
             ))}
           </Bar>
         </BarChart>
@@ -63,7 +63,7 @@ export function FachadaChart({ materials }: MaterialChartProps) {
           <Tooltip formatter={(value) => [`${value}%`, 'Implementado']} />
           <Bar dataKey="value" fill={COLOR_FACHADA} radius={[0, 6, 6, 0]}>
             {chartData.map((_, i) => (
-              <Cell key={i} fill={['#10B981','#34D399','#6EE7B7','#A7F3D0'][i]} />
+              <Cell key={i} fill={['#FF740C','#FF9139','#FFB380','#FFD4B3'][i]} />
             ))}
           </Bar>
         </BarChart>
@@ -80,11 +80,11 @@ interface DistributionChartProps {
   insight?: string;
 }
 
-// 4 colores distintos por categoría
-const COLOR_LC      = '#007BFF' // Azul — La Crianza
-const COLOR_SC      = '#FF740C' // Naranja — Super Cerdo
-const COLOR_PAN     = '#F59E0B' // Ámbar — Panadería
-const COLOR_FACHADA = '#10B981' // Verde — Fachada Externa
+// Colores por categoría según identidad de marca
+const COLOR_LC      = '#1A1A1A' // Negro — La Crianza (logo negro)
+const COLOR_SC      = '#CC0000' // Rojo — Super Cerdo (logo rojo)
+const COLOR_PAN     = '#007BFF' // Azul — Panadería (Agrosuper azul)
+const COLOR_FACHADA = '#FF740C' // Naranja — Fachada (Agrosuper naranja)
 
 const ALL_MATERIALS = [
   { key: 'BANDEJA_JAMON_LC',          label: 'Bandeja Jamón LC',          color: COLOR_LC },
