@@ -9,7 +9,7 @@ const COLUMNS = [
   { title: 'Campañas Totales', type: 'total',       dot: 'bg-primary', color: 'var(--primary)' },
   { title: 'La Crianza',       type: 'la_crianza',  dot: 'bg-accent', color: 'var(--accent)' },
   { title: 'Super Cerdo',      type: 'super_cerdo', dot: 'bg-secondary',  color: 'var(--secondary)' },
-  { title: 'Agrosuper',        type: 'agrosuper',   dot: 'bg-orange-600',   color: 'var(--accent)' },
+  { title: 'Agrosuper',        type: 'agrosuper',   dot: 'bg-accent',   color: 'var(--accent)' },
 ]
 
 type Campaign = {

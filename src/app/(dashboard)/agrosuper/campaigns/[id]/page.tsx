@@ -268,7 +268,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   }
 
   // Check if this is Abril campaign
-  const isAbril = campaign.name.toLowerCase().includes('abril') || campaign.name.toLowerCase().includes('april')
+  const isAbril = campaign.name.toLowerCase().includes('abril') || campaign.name.toLowerCase().includes('april') || campaign.name.toLowerCase().includes('abr 26')
 
   if (isAbril) {
     // Load data from abril table
@@ -288,6 +288,90 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       offset += pageSize
     }
 
+    const total = allAbrilData.length
+
+    // Convert boolean columns → AgrosuperMaterial[] for reuse in charts
+    const ABRIL_MATERIAL_MAP: { col: string; key: string; brand: string | null; space: string }[] = [
+      { col: 'bandeja_jamon_lc',          key: 'BANDEJA_JAMON_LC',          brand: 'LA_CRIANZA',   space: 'INTERIOR' },
+      { col: 'logo_vitrina_lc',           key: 'LOGO_VITRINA_LC',           brand: 'LA_CRIANZA',   space: 'INTERIOR' },
+      { col: 'colgante_recomendacion_lc', key: 'COLGANTE_RECOMENDACION_LC', brand: 'LA_CRIANZA',   space: 'INTERIOR' },
+      { col: 'marca_precio_sc',           key: 'MARCA_PRECIO_SC',           brand: 'SUPER_CERDO',  space: 'INTERIOR' },
+      { col: 'huincha_precio_sc',         key: 'HUINCHA_PRECIO_SC',         brand: 'SUPER_CERDO',  space: 'INTERIOR' },
+      { col: 'cartel_panaderia',          key: 'CARTEL_PANADERIA',          brand: null,           space: 'PANADERIA' },
+      { col: 'portabolsas',               key: 'PORTABOLSAS',               brand: null,           space: 'PANADERIA' },
+      { col: 'bolsas_papel',              key: 'BOLSAS_PAPEL',              brand: null,           space: 'PANADERIA' },
+      { col: 'tenazas_2',                 key: 'TENAZAS_2',                 brand: null,           space: 'PANADERIA' },
+      { col: 'paloma',                    key: 'PALOMA',                    brand: null,           space: 'FACHADA_EXTERNA' },
+      { col: 'cenefa_lc',                 key: 'CENEFA_LC',                 brand: null,           space: 'FACHADA_EXTERNA' },
+      { col: 'bandera_muro_lc',           key: 'BANDERA_MURO_LC',           brand: null,           space: 'FACHADA_EXTERNA' },
+      { col: 'bandera_rutera_lc',         key: 'BANDERA_RUTERA_LC',         brand: null,           space: 'FACHADA_EXTERNA' },
+    ]
+
+    const mats: any[] = []
+    for (const row of allAbrilData) {
+      for (const m of ABRIL_MATERIAL_MAP) {
+        if (row[m.col] !== null && row[m.col] !== undefined) {
+          mats.push({ material: m.key, implemented: !!row[m.col], brand: m.brand, space: m.space, id: '', audit_id: '', created_at: '' })
+        }
+      }
+    }
+
+    // KPI metrics
+    const implementedCount = allAbrilData.filter((a: any) => (a.implementation_rate ?? 0) > 0).length
+    const implementedPct = total > 0 ? Math.round((implementedCount / total) * 100) : 0
+    const avgRate = total > 0 ? Math.round(allAbrilData.reduce((s: number, a: any) => s + (a.implementation_rate ?? 0), 0) / total) : 0
+
+    const lcRates = allAbrilData.map((a: any) => {
+      const vals = [a.bandeja_jamon_lc, a.logo_vitrina_lc, a.colgante_recomendacion_lc].filter((v: any) => v !== null && v !== undefined)
+      return vals.length > 0 ? Math.round((vals.filter(Boolean).length / vals.length) * 100) : 0
+    })
+    const laCrianza = lcRates.length > 0 ? Math.round(lcRates.reduce((s: number, v: number) => s + v, 0) / lcRates.length) : 0
+
+    const scRates = allAbrilData.map((a: any) => {
+      const vals = [a.marca_precio_sc, a.huincha_precio_sc].filter((v: any) => v !== null && v !== undefined)
+      return vals.length > 0 ? Math.round((vals.filter(Boolean).length / vals.length) * 100) : 0
+    })
+    const superCerdo = scRates.length > 0 ? Math.round(scRates.reduce((s: number, v: number) => s + v, 0) / scRates.length) : 0
+
+    const success  = allAbrilData.filter((a: any) => (a.implementation_rate ?? 0) >= 80).length
+    const partial  = allAbrilData.filter((a: any) => { const r = a.implementation_rate ?? 0; return r >= 50 && r < 80 }).length
+    const low      = allAbrilData.filter((a: any) => { const r = a.implementation_rate ?? 0; return r > 0 && r < 50 }).length
+    const none     = allAbrilData.filter((a: any) => (a.implementation_rate ?? 0) === 0).length
+
+    // Top 5 comunas via locations table lookup
+    const locationCodes = [...new Set(allAbrilData.map((a: any) => String(a.location_code)).filter(Boolean))]
+    const { data: locationsData } = locationCodes.length > 0
+      ? await supabase.from('locations').select('external_id, region').in('external_id', locationCodes)
+      : { data: [] }
+    const locationRegionMap = new Map((locationsData || []).map((l: any) => [l.external_id, l.region]))
+
+    const comunaMap: Record<string, { total: number; sum: number }> = {}
+    for (const a of allAbrilData) {
+      const region = locationRegionMap.get(String(a.location_code)) || null
+      if (!region) continue
+      if (!comunaMap[region]) comunaMap[region] = { total: 0, sum: 0 }
+      comunaMap[region].total += 1
+      comunaMap[region].sum += a.implementation_rate ?? 0
+    }
+    const topComunas = Object.entries(comunaMap)
+      .map(([name, { total, sum }]) => ({ name, total, avg: Math.round(sum / total) }))
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 5)
+
+    // Insight: modo de cantidad de POP instalados por local
+    const perfectCount = allAbrilData.filter((a: any) => (a.implementation_rate ?? 0) === 100).length
+    const popCountHistogram: Record<number, number> = {}
+    for (const a of allAbrilData) {
+      const count = ABRIL_MATERIAL_MAP.filter(m => a[m.col] === true).length
+      popCountHistogram[count] = (popCountHistogram[count] || 0) + 1
+    }
+    const [modalCount, modalLocales] = Object.entries(popCountHistogram)
+      .filter(([count]) => Number(count) > 0)
+      .sort((a, b) => Number(b[1]) - Number(a[1]))[0] ?? ['0', 0]
+    const insight = `La cantidad de POP más común instalada fue ${modalCount} material${Number(modalCount) !== 1 ? 'es' : ''}, ` +
+      `presente en ${modalLocales} local${Number(modalLocales) !== 1 ? 'es' : ''}. ` +
+      `${perfectCount} local${perfectCount !== 1 ? 'es' : ''} lograron implementación perfecta (100%).`
+
     const abrilAudits = allAbrilData.map((a: any) => ({
       id: `abril-${a.form_code}`,
       form_code: a.form_code,
@@ -295,66 +379,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       location_name: a.location_name,
       submitted_at: a.submitted_at,
       implementer_name: a.implementer_name,
-      implementation_rate: a.implementation_rate
+      implementation_rate: a.implementation_rate,
+      pdf_url: a.pdf_url ?? null,
     }))
-
-    const audits = abrilAudits
-    const total = audits.length
-
-    // Calculate metrics by material
-    const countMaterial = (materiales: any[], column: string) => {
-      return allAbrilData.filter((row: any) => row[column] === true).length
-    }
-
-    const bandeja = countMaterial(allAbrilData, 'bandeja_jamon_lc')
-    const logo = countMaterial(allAbrilData, 'logo_vitrina_lc')
-    const colgante = countMaterial(allAbrilData, 'colgante_recomendacion_lc')
-    const marcaPrecio = countMaterial(allAbrilData, 'marca_precio_sc')
-    const huincha = countMaterial(allAbrilData, 'huincha_precio_sc')
-    const cartelPan = countMaterial(allAbrilData, 'cartel_panaderia')
-    const portabolsas = countMaterial(allAbrilData, 'portabolsas')
-    const bolsasPapel = countMaterial(allAbrilData, 'bolsas_papel')
-    const tenazas = countMaterial(allAbrilData, 'tenazas_2')
-    const paloma = countMaterial(allAbrilData, 'paloma')
-    const cenefa = countMaterial(allAbrilData, 'cenefa_lc')
-    const banderaMuro = countMaterial(allAbrilData, 'bandera_muro_lc')
-    const banderaRutera = countMaterial(allAbrilData, 'bandera_rutera_lc')
-
-    const denominator = total || 1
-    const pct = (count: number) => Math.round((count / denominator) * 100)
-
-    const bandejaPct = pct(bandeja)
-    const logoPct = pct(logo)
-    const colgantesPct = pct(colgante)
-    const marcaPrecióPct = pct(marcaPrecio)
-    const huinchaPct = pct(huincha)
-    const cartelPanPct = pct(cartelPan)
-    const portabolsasPct = pct(portabolsas)
-    const bolsasPct = pct(bolsasPapel)
-    const tenazasPct = pct(tenazas)
-    const palomaPct = pct(paloma)
-    const cenefaPct = pct(cenefa)
-    const banderaMuroPct = pct(banderaMuro)
-    const banderaRuteraPct = pct(banderaRutera)
-
-    const opened = allAbrilData.filter((r: any) => r.local_status?.toLowerCase?.() === 'abierto').length
-
-    // Prepare POP data for chart
-    const popData = [
-      { name: 'Bandeja Jamón LC', value: bandejaPct },
-      { name: 'Logo Vitrina LC', value: logoPct },
-      { name: 'Colgante LC', value: colgantesPct },
-      { name: 'Marca Precio SC', value: marcaPrecióPct },
-      { name: 'Huincha Precio SC', value: huinchaPct },
-      { name: 'Cartel Panadería', value: cartelPanPct },
-      { name: 'Portabolsas', value: portabolsasPct },
-      { name: 'Bolsas Papel', value: bolsasPct },
-      { name: 'Tenazas', value: tenazasPct },
-      { name: 'Paloma', value: palomaPct },
-      { name: 'Cenefa LC', value: cenefaPct },
-      { name: 'Bandera Muro LC', value: banderaMuroPct },
-      { name: 'Bandera Rutera LC', value: banderaRuteraPct }
-    ].sort((a, b) => b.value - a.value)
 
     return (
       <div className="space-y-6 p-6">
@@ -369,80 +396,75 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        {/* Total stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="p-4 bg-blue-50 border-blue-200">
-            <p className="text-sm text-gray-600">Total de Visitas</p>
-            <p className="text-3xl font-bold text-blue-900">{total}</p>
-          </Card>
-          <Card className="p-4 bg-green-50 border-green-200">
-            <p className="text-sm text-gray-600">Locales Abiertos</p>
-            <p className="text-3xl font-bold text-green-900">{opened}</p>
-          </Card>
+        {/* KPIs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="Locales Implementados"
+            value={implementedPct}
+            unit="%"
+            description={`${total} locales visitados`}
+            trend={implementedPct >= 80 ? 'up' : implementedPct >= 50 ? 'neutral' : 'down'}
+          />
+          <MetricCard
+            label="Promedio de implementación por local"
+            value={avgRate}
+            unit="%"
+            description={`Sobre ${total} locales visitados`}
+            trend={avgRate >= 80 ? 'up' : avgRate >= 50 ? 'neutral' : 'down'}
+          />
+          <MetricCard
+            label="La Crianza"
+            value={laCrianza}
+            unit="%"
+            description="Promedio implementación"
+            trend={laCrianza >= 80 ? 'up' : 'neutral'}
+          />
+          <MetricCard
+            label="Super Cerdo"
+            value={superCerdo}
+            unit="%"
+            description="Promedio implementación"
+            trend={superCerdo >= 80 ? 'up' : 'neutral'}
+          />
         </div>
 
-        {/* La Crianza + Super Cerdo side by side */}
+        {/* Panadería + Fachada */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* La Crianza */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">🏆 La Crianza</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-medium">Bandeja Jamón: {bandejaPct}%</p>
-                {statusBadge(bandejaPct)}
-              </div>
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-medium">Logo Vitrina: {logoPct}%</p>
-                {statusBadge(logoPct)}
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Colgante: {colgantesPct}%</p>
-                {statusBadge(colgantesPct)}
-              </div>
-            </div>
-          </Card>
-
-          {/* Super Cerdo */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">🥩 Super Cerdo</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2">
-                <p className="text-sm font-medium">Marca Precio: {marcaPrecióPct}%</p>
-                {statusBadge(marcaPrecióPct)}
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Huincha Precio: {huinchaPct}%</p>
-                {statusBadge(huinchaPct)}
-              </div>
-            </div>
-          </Card>
+          <PanaderiaChart materials={mats} />
+          <FachadaChart materials={mats} />
         </div>
 
-        {/* All POP materials chart */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">📊 Todos los POP - % Implementación</h3>
-          <div className="space-y-2">
-            {popData.map((item) => (
-              <div key={item.name} className="flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.name}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="w-32 h-6 bg-gray-100 rounded overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 transition-all"
-                      style={{ width: `${item.value}%` }}
-                    />
+        {/* Todos los materiales */}
+        <AllMaterialsChart materials={mats} />
+
+        {/* Top 5 Comunas + Distribución */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">🏆 Top 5 Comunas</h3>
+            <div className="space-y-3">
+              {topComunas.length > 0 ? (
+                topComunas.map((c, i) => (
+                  <div key={c.name} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{i + 1}. {c.name}</p>
+                      <p className="text-xs text-gray-500">{c.total} local{c.total !== 1 ? 'es' : ''}</p>
+                    </div>
+                    <div className="text-right ml-3 shrink-0">
+                      <p className="font-semibold text-lg">{c.avg}%</p>
+                      {statusBadge(c.avg)}
+                    </div>
                   </div>
-                  <span className="font-semibold text-sm w-12 text-right">{item.value}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400">Sin datos de comunas disponibles</p>
+              )}
+            </div>
+          </Card>
+          <ImplementationDistributionChart success={success} partial={partial} low={low} none={none} insight={insight} />
+        </div>
 
         {/* Detalle de todas las auditorías */}
-        <AbrilAuditsTable audits={audits} />
+        <AbrilAuditsTable audits={abrilAudits} />
       </div>
     )
   }

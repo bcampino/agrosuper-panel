@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 interface MetricCardProps {
   label: string;
@@ -20,38 +20,37 @@ export function MetricCard({
   description,
   onClick,
 }: MetricCardProps) {
-  const getTrendColor = () => {
-    if (trend === 'up') return 'text-green-600';
-    if (trend === 'down') return 'text-red-600';
-    return 'text-gray-500';
-  };
+  const trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-500' : 'text-gray-400'
+  const TrendIcon = trend === 'up' ? ArrowUp : trend === 'down' ? ArrowDown : Minus
 
   return (
     <Card
-      className={`p-6 ${onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
+      className={`p-5 border-l-4 ${onClick ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
+      style={{ borderLeftColor: 'var(--color-primary)' }}
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{label}</p>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold">
-              {value}
-              {typeof value === 'number' && <span className="text-lg text-gray-500">{unit}</span>}
-            </span>
-          </div>
-          {description && (
-            <p className="mt-2 text-xs text-gray-500">{description}</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-2">{label}</p>
+      <div className="flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold" style={{ color: 'var(--color-secondary)' }}>
+            {value}
+          </span>
+          {typeof value === 'number' && (
+            <span className="text-base font-medium text-gray-400">{unit}</span>
           )}
         </div>
-        {percentage !== undefined && (
-          <div className={`flex items-center gap-1 ${getTrendColor()}`}>
-            {trend === 'up' && <ArrowUp size={16} />}
-            {trend === 'down' && <ArrowDown size={16} />}
-            <span className="text-sm font-medium">{percentage}%</span>
+        {(percentage !== undefined || trend) && (
+          <div className={`flex items-center gap-1 ${trendColor} shrink-0`}>
+            <TrendIcon size={14} />
+            {percentage !== undefined && (
+              <span className="text-xs font-semibold">{percentage}%</span>
+            )}
           </div>
         )}
       </div>
+      {description && (
+        <p className="mt-2 text-xs text-gray-400">{description}</p>
+      )}
     </Card>
   );
 }

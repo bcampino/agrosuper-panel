@@ -76,6 +76,8 @@ interface DistributionChartProps {
   success: number;
   partial: number;
   low: number;
+  none?: number;
+  insight?: string;
 }
 
 const ALL_MATERIALS = [
@@ -99,7 +101,7 @@ export function AllMaterialsChart({ materials }: MaterialChartProps) {
     name:  m.label,
     value: calcMaterialRate(materials, m.key),
     color: m.color,
-  }))
+  })).sort((a, b) => b.value - a.value)
 
   return (
     <Card className="p-6">
@@ -135,16 +137,21 @@ export function AllMaterialsChart({ materials }: MaterialChartProps) {
   )
 }
 
-export function ImplementationDistributionChart({ success, partial, low }: DistributionChartProps) {
+export function ImplementationDistributionChart({ success, partial, low, none = 0, insight }: DistributionChartProps) {
   const chartData = [
     { name: 'Excelente (≥80%)', value: success, color: '#007BFF' },
     { name: 'Parcial (50-80%)', value: partial, color: '#FF740C' },
     { name: 'Bajo (<50%)', value: low, color: '#EF4444' },
-  ];
+    ...(none > 0 ? [{ name: 'Sin POP (0%)', value: none, color: '#9CA3AF' }] : []),
+  ].filter(d => d.value > 0);
 
   return (
     <Card className="p-6">
-      <h3 className="text-lg font-semibold mb-4">Distribución de Locales</h3>
+      <h3 className="text-lg font-semibold mb-1">Distribución de Locales</h3>
+      {insight && (
+        <p className="text-sm text-gray-500 mb-4 leading-relaxed">{insight}</p>
+      )}
+      {!insight && <div className="mb-4" />}
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
